@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Setting";
+import ChatbotWidget from "./components/ui/ChatbotWidget";
 
 const queryClient = new QueryClient();
 
@@ -31,9 +32,11 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
+        <ChatbotWidget />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  
 );
 
 export default App;

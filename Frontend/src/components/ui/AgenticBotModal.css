@@ -1,0 +1,84 @@
+.agentic-modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+}
+
+.agentic-modal-window {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 340px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+.agentic-modal-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+}
+
+.agentic-modal-title { font-size: 20px; font-weight: bold; color: #1f2937; }
+.agentic-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.agentic-modal-instructions { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
+.agentic-modal-example { font-family: monospace; }
+
+.agentic-modal-entry-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.agentic-modal-input {
+  flex: 1;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 15px;
+  outline: none;
+}
+.agentic-modal-input:focus { border-color: #606eea; }
+
+.agentic-modal-voice {
+  border: 1px solid #bbb;
+  background: white;
+  border-radius: 50%;
+  padding: 4px;
+  cursor: pointer;
+}
+.agentic-modal-voice.voice-listening { border-color: #e55160; color: #e55160; }
+
+.agentic-modal-send {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.agentic-modal-send:hover { background: #564ba2; }
+
+.agentic-modal-result {
+  background: #f3f4f6;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  max-height: 180px;
+  overflow: auto;
+  font-family: monospace;
+}
+
+.agentic-modal-loader {
+  text-align: center; padding-top: 18px;
+}
+
+.loader-spinner {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
