@@ -146,29 +146,16 @@ def qwen_query(prompt):
 # Load Qwen model at startup
 load_qwen_model()
 
-# ---------- 4. API Route ---------- #
-@dashboard_bp.route('/api/query', methods=['POST'])
-@jwt_required()
-def post_query():
-    if not request.is_json:
-        return jsonify(error="Request must be JSON"), 400
+# --- Paste this in dashboard.py ---
+from datetime import datetime
 
-    payload = request.get_json()
-    prompt = payload.get("query", "").strip()
-    if not prompt:
-        return jsonify(error="Query cannot be empty"), 400
-    if len(prompt) > 5000:
-        return jsonify(error="Query too long"), 400
-
-    logger.info(f"Received query: {prompt[:100]}")
-
-    # Dispatch each model in parallel
+def run_all_model_queries(email, prompt):
+    # Make sure executor, mistral_query, qwen_query, gemini_query, queries, and logger are imported/available!
     futures = {
         executor.submit(mistral_query, prompt): "opensource",
-        executor.submit(qwen_query,   prompt): "lawgpt",
+        executor.submit(qwen_query, prompt): "lawgpt",
         executor.submit(gemini_query, prompt): "proprietary"
     }
-
     responses = {}
     for future in as_completed(futures):
         key = futures[future]
@@ -177,11 +164,10 @@ def post_query():
         except Exception as e:
             logger.error(f"Error in {key} future: {e}")
             responses[key] = f"[{key}] Error"
-
     # Save to DB (fire-and-forget)
     try:
         queries.insert_one({
-            "email": get_jwt_identity(),
+            "email": email,
             "query": prompt,
             "responses": responses,
             "timestamp": datetime.utcnow()
@@ -189,6 +175,22 @@ def post_query():
         logger.info("Saved query to database")
     except Exception as e:
         logger.error(f"DB insertion error: {e}")
-
     logger.info("Returning all responses")
+    return responses
+
+
+# ---------- 4. API Route ---------- #
+@dashboard_bp.route('/api/query', methods=['POST'])
+@jwt_required()
+def post_query():
+    if not request.is_json:
+        return jsonify(error="Request must be JSON"), 400
+    payload = request.get_json()
+    prompt = payload.get("query", "").strip()
+    if not prompt:
+        return jsonify(error="Query cannot be empty"), 400
+    if len(prompt) > 5000:
+        return jsonify(error="Query too long"), 400
+    email = get_jwt_identity()
+    responses = run_all_model_queries(email, prompt)
     return jsonify(responses)

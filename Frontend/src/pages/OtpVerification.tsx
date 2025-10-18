@@ -147,6 +147,9 @@ const OtpVerification = () => {
                 maxLength={1}
                 className="w-10 h-12 text-center border rounded-md"
                 autoComplete="one-time-code"
+                title={`Digit ${idx + 1}`}
+                placeholder="•"
+                aria-label={`OTP digit ${idx + 1}`}
               />
             ))}
           </div>

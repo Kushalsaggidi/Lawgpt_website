@@ -54,33 +54,56 @@ const AgenticBotModal: React.FC<AgenticBotModalProps> = ({ close }) => {
     recognitionRef.current.start();
   };
 
-  const handleSubmit = async () => {
-    if (!command.trim()) return;
-    setIsProcessing(true);
-    setResult(null);
-    try {
-      const response = await fetch("http://localhost:5000/api/agentic-command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
-      });
-      const data = await response.json();
-      setResult(data);
+const handleSubmit = async () => {
+  if (!command.trim()) return;
+  setIsProcessing(true);
+  setResult(null);
+  try {
+    const response = await fetch("http://localhost:5000/api/agentic-command", {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("token")}`,  // send JWT if present
+    },
+    body: JSON.stringify({ command })
+  });
 
-      if (data.login?.success) {
-        localStorage.setItem("token", data.login.token);
-        localStorage.setItem("userEmail", command.match(/email\s*=\s*([\w@.+-]+)/i)?.[1] || "");
-        setTimeout(() => {
-          navigate("/dashboard");
-          close();
-        }, 1500);
-      }
-    } catch (error) {
-      alert("Failed to execute command.");
-    } finally {
-      setIsProcessing(false);
+    const data = await response.json();
+    setResult(data);
+
+    // The new backend returns multiple steps in an array at data.results
+    // Loop through them and apply relevant actions
+    if (Array.isArray(data.results)) {
+      data.results.forEach(result => {
+    if (
+      (result.tool === "login" || result.tool === "signup" || result.command === "login" || result.command === "signup") &&
+      result.result?.token
+    ) {
+      localStorage.setItem("token", result.result.token);
+      localStorage.setItem("userEmail", result.result.user_email);
+      // Always route to dashboard after login or signup!
+      setTimeout(() => {
+        navigate("/otp-verification"); // <-- or your main page route
+        close();
+      }, 1500);
     }
-  };
+
+    if (result.result?.navigate) {
+      setTimeout(() => {
+        navigate(`/${result.result.navigate}`);
+        close();
+      }, 1500);
+    }
+  });
+
+    }
+  } catch (error) {
+    alert("Failed to execute command.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
 
   return (
     <div className="agentic-modal-backdrop" onClick={close}>
