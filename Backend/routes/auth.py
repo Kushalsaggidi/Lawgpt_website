@@ -20,7 +20,19 @@ def signup():
     users.insert_one({
         "name": data['name'],
         "email": data['email'],
-        "password": hashed
+        "password": hashed,
+        "bio": "",
+        "created_at": datetime.utcnow(),
+        "settings": {
+            "theme": "auto",
+            "notifications": {
+                "enabled": True
+            }
+        },
+        "stats": {
+            "totalQueries": 0,
+            "favoriteModel": "LawGPT"
+        }
     })
     otp = generate_otp()
     otp_codes.insert_one({

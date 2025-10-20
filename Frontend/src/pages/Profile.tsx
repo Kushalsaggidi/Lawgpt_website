@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,18 +13,18 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState("John Doe");
-  const [bio, setBio] = useState("Legal professional specializing in corporate law");
-  const email = "john.doe@example.com";
-  const userInitial = email[0].toUpperCase();
-  const memberSince = "October 2025";
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
+  const [email, setEmail] = useState("");
+  const userInitial = email ? email[0].toUpperCase() : "U";
+  const [memberSince, setMemberSince] = useState("");
 
-  const stats = {
-    totalQueries: 156,
-    favoriteModel: "LawGPT Fine-tuned",
-    accountAge: "2 months",
-    currentStreak: "7 days",
-  };
+  const [stats, setStats] = useState({
+    totalQueries: 0,
+    favoriteModel: "LawGPT",
+    accountAge: "",
+    currentStreak: "",
+  });
 
   const achievements = [
     { name: "First Query", icon: "🎯", earned: true },
@@ -35,12 +35,76 @@ const Profile = () => {
     { name: "Daily Learner", icon: "🌟", earned: true },
   ];
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been successfully updated",
-    });
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    const load = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/profile", {
+          headers: { "Authorization": "Bearer " + token },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setName(data.name || "");
+          setBio(data.bio || "");
+          setEmail(data.email || "");
+          setMemberSince(data.memberSince || "");
+          const s = data.stats || {};
+          setStats({
+            totalQueries: s.totalQueries || 0,
+            favoriteModel: s.favoriteModel || "LawGPT",
+            accountAge: s.accountAge || "",
+            currentStreak: s.currentStreak || "",
+          });
+        }
+      } catch (err) {
+        console.error("Profile load error:", err);
+      }
+    };
+    load();
+  }, [navigate]);
+
+  const handleSave = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast({ 
+        title: "Error", 
+        description: "Not logged in", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    try {
+      const res = await fetch("http://localhost:5000/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+        },
+        body: JSON.stringify({ name, bio }),
+      });
+      if (res.ok) {
+        setIsEditing(false);
+        toast({ title: "Profile Updated", description: "Your profile has been updated" });
+      } else {
+        const error = await res.json();
+        toast({ 
+          title: "Error", 
+          description: error.error || "Failed to update profile", 
+          variant: "destructive" 
+        });
+      }
+    } catch (err) {
+      console.error("Profile save error:", err);
+      toast({ 
+        title: "Error", 
+        description: "Failed to update profile. Please try again.", 
+        variant: "destructive" 
+      });
+    }
   };
 
   return (
@@ -81,7 +145,11 @@ const Profile = () => {
               <div className="w-32 h-32 rounded-full bg-gold text-primary flex items-center justify-center text-5xl font-bold shadow-lg">
                 {userInitial}
               </div>
-              <button className="absolute bottom-0 right-0 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition-smooth shadow-lg">
+              <button 
+                className="absolute bottom-0 right-0 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/90 transition-smooth shadow-lg"
+                title="Edit profile picture"
+                aria-label="Edit profile picture"
+              >
                 <Edit2 className="w-5 h-5" />
               </button>
             </div>

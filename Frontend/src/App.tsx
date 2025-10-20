@@ -12,8 +12,30 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Setting";
 import ChatbotWidget from "./components/ui/ChatbotWidget";
+import { SearchProvider, useSearch } from "./contexts/SearchContext";
 
 const queryClient = new QueryClient();
+
+const AppWithSearch = () => {
+  const { setSearchResults, setAgenticResult } = useSearch();
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/otp-verification" element={<OtpVerification />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <ChatbotWidget onSearchResults={setSearchResults} onAgenticResult={setAgenticResult} />
+    </>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -21,22 +43,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/otp-verification" element={<OtpVerification />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-        <ChatbotWidget />
+        <SearchProvider>
+          <AppWithSearch />
+        </SearchProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-  
+
 );
 
 export default App;

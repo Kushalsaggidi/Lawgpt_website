@@ -76,6 +76,7 @@ const OtpVerification = () => {
         });
         if (purpose === "login" && data.token) {
           localStorage.setItem("token", data.token);
+          localStorage.setItem("userEmail", email);
           navigate("/dashboard");
         } else if (purpose === "signup") {
           // Optionally, redirect to login here or show further instructions!

@@ -26,11 +26,13 @@ import {
   Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSearch } from "@/contexts/SearchContext";
 import lawgptLogo from "@/assets/lawgpt-logo.png";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { searchResults, setSearchResults, agenticResult, setAgenticResult } = useSearch();
   const [query, setQuery] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -39,24 +41,139 @@ const Dashboard = () => {
     lawgpt: "",
     proprietary: "",
   });
-  const [queryHistory, setQueryHistory] = useState([
-    { text: "How to file a PIL in Supreme Court?", time: "2 hours ago" },
-    { text: "What is Section 498A IPC?", time: "Yesterday" },
-    { text: "Property dispute legal process", time: "3 days ago" },
-  ]);
+  const [queryHistory, setQueryHistory] = useState([]);
   const recognitionRef = useRef(null);
 
-  const userEmail = localStorage.getItem("userEmail") || "user@example.com";
-  const userInitial = userEmail[0].toUpperCase();
+  const [userEmail, setUserEmail] = useState("");
+  const userInitial = userEmail ? userEmail[0].toUpperCase() : "U";
 
-  // JWT safety/authentication guard
+  // JWT safety/authentication guard and get user email
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login");
+      return;
     }
-    // Optionally fetch protected dashboard data here!
+    
+    // Get user email from localStorage or decode from JWT
+    const storedEmail = localStorage.getItem("userEmail");
+    if (storedEmail) {
+      setUserEmail(storedEmail);
+    } else {
+      // Fallback: try to get from profile API
+      fetch("http://localhost:5000/api/profile", {
+        headers: { "Authorization": "Bearer " + token }
+      })
+      .then(res => {
+        if (res.ok) {
+          return res.json();
+        }
+        throw new Error("Failed to fetch profile");
+      })
+      .then(data => {
+        if (data.email) {
+          setUserEmail(data.email);
+          localStorage.setItem("userEmail", data.email);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load user email:", err);
+        // Keep the default empty state
+      });
+    }
   }, [navigate]);
+
+  // Load persisted query history for the logged-in user
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const loadHistory = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/queries", {
+          headers: {
+            "Authorization": "Bearer " + token,
+          },
+        });
+        if (!res.ok) {
+          console.error("Failed to load query history:", res.status);
+          return;
+        }
+        const items = await res.json();
+        const mapped = (items || []).slice(0, 10).map((it: any) => ({
+          text: it.query,
+          time: new Date(it.timestamp).toLocaleString(),
+        }));
+        setQueryHistory(mapped);
+      } catch (err) {
+        console.error("Error loading query history:", err);
+      }
+    };
+    loadHistory();
+  }, []);
+
+  // Handle search results from agentic bot
+  useEffect(() => {
+    if (searchResults) {
+      setQuery(searchResults.query);
+      setResponses(searchResults.responses);
+      setQueryHistory((prev) => [
+        { text: searchResults.query, time: "Just now" },
+        ...prev.slice(0, 9),
+      ]);
+      // Clear the search results after processing
+      setSearchResults(null);
+      toast({
+        title: "✨ Search Complete",
+        description: "Results from agentic search displayed",
+      });
+    }
+  }, [searchResults, setSearchResults, toast]);
+
+  // Handle other agentic results
+  useEffect(() => {
+    if (agenticResult) {
+      switch (agenticResult.type) {
+        case 'profile_update':
+          toast({
+            title: "✅ Profile Updated",
+            description: agenticResult.message,
+          });
+          break;
+        case 'settings_update':
+          toast({
+            title: "⚙️ Settings Updated",
+            description: agenticResult.message,
+          });
+          break;
+        case 'theme_change':
+          toast({
+            title: "🎨 Theme Changed",
+            description: agenticResult.message,
+          });
+          break;
+        case 'help':
+          toast({
+            title: "ℹ️ Help",
+            description: agenticResult.message,
+          });
+          break;
+        case 'error':
+          toast({
+            title: "❌ Error",
+            description: agenticResult.message,
+            variant: "destructive",
+          });
+          break;
+        default:
+          toast({
+            title: "✅ Action Complete",
+            description: agenticResult.message,
+          });
+      }
+      // Clear the result after processing
+      setAgenticResult(null);
+    }
+  }, [agenticResult, setAgenticResult, toast]);
 
   // Voice Recognition Handler
   const toggleVoiceInput = () => {
@@ -119,47 +236,64 @@ const Dashboard = () => {
   };
 
   // Submit Query
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!query.trim()) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
 
-  setIsProcessing(true);
+    setIsProcessing(true);
 
-  setQueryHistory((prev) => [
-    { text: query, time: "Just now" },
-    ...prev.slice(0, 9),
-  ]);
+    setQueryHistory((prev) => [
+      { text: query, time: "Just now" },
+      ...prev.slice(0, 9),
+    ]);
 
-  try {
-    const token = localStorage.getItem("token");
-    const response = await fetch("http://localhost:5000/api/query", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token
-      },
-      body: JSON.stringify({ query })
-    });
-    const data = await response.json();
-    setResponses({
-      opensource: data.opensource,
-      lawgpt: data.lawgpt,
-      proprietary: data.proprietary,
-    });
-    setIsProcessing(false);
-    toast({
-      title: "✨ Analysis Complete",
-      description: "All models have provided their insights",
-    });
-  } catch (err) {
-    setIsProcessing(false);
-    toast({
-      title: "Error",
-      description: "Failed to get model response.",
-      variant: "destructive",
-    });
-  }
-};
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "Not logged in. Please login first.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
+      const response = await fetch("http://localhost:5000/api/query", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ query })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Query failed");
+      }
+      
+      const data = await response.json();
+      setResponses({
+        opensource: data.opensource,
+        lawgpt: data.lawgpt,
+        proprietary: data.proprietary,
+      });
+      setIsProcessing(false);
+      toast({
+        title: "✨ Analysis Complete",
+        description: "All models have provided their insights",
+      });
+    } catch (err) {
+      setIsProcessing(false);
+      console.error("Query submission error:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to get model response.",
+        variant: "destructive",
+      });
+    }
+  };
 
 
   const handleCopy = (text) => {
@@ -211,11 +345,11 @@ const handleSubmit = async (e) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-3 py-2 border-b">
-                    <p className="text-sm font-semibold">{userEmail}</p>
+                    <p className="text-sm font-semibold">{userEmail || "Loading..."}</p>
                     <p className="text-xs text-muted-foreground">Free Plan</p>
                   </div>
-                  <DropdownMenuItem className="cursor-pointer"      onClick={() => navigate("/profile")}
->
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}
+                  >
                     <User className="w-4 h-4 mr-2" />
                     Profile
                   </DropdownMenuItem>
@@ -295,11 +429,10 @@ const handleSubmit = async (e) => {
                     type="button"
                     variant="outline"
                     onClick={toggleVoiceInput}
-                    className={`${
-                      isListening
-                        ? "bg-red-50 border-red-300 text-red-600 animate-pulse"
-                        : "border-slate-300 hover:border-blue-500"
-                    }`}
+                    className={`${isListening
+                      ? "bg-red-50 border-red-300 text-red-600 animate-pulse"
+                      : "border-slate-300 hover:border-blue-500"
+                      }`}
                     disabled={isProcessing}
                   >
                     <Mic className="w-4 h-4 mr-2" />

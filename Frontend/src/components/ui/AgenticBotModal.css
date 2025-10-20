@@ -1,84 +1,287 @@
+/* Modern Agentic Bot Modal Styles */
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.6); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Modal backdrop with blur effect */
 .agentic-modal-backdrop {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 10000;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s ease-out;
 }
 
-.agentic-modal-window {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  min-width: 340px;
-  max-width: 90vw;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  position: relative;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.agentic-modal-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+/* Floating particles animation */
+.floating-particle {
+  animation: float 3s ease-in-out infinite;
 }
 
-.agentic-modal-title { font-size: 20px; font-weight: bold; color: #1f2937; }
-.agentic-modal-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 22px;
+.floating-particle:nth-child(2) {
+  animation-delay: 0.5s;
 }
 
-.agentic-modal-instructions { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
-.agentic-modal-example { font-family: monospace; }
-
-.agentic-modal-entry-row { display: flex; gap: 8px; margin-bottom: 16px; }
-.agentic-modal-input {
-  flex: 1;
-  border: 1px solid #bbb;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 15px;
-  outline: none;
-}
-.agentic-modal-input:focus { border-color: #606eea; }
-
-.agentic-modal-voice {
-  border: 1px solid #bbb;
-  background: white;
-  border-radius: 50%;
-  padding: 4px;
-  cursor: pointer;
-}
-.agentic-modal-voice.voice-listening { border-color: #e55160; color: #e55160; }
-
-.agentic-modal-send {
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 7px;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background .2s;
-}
-.agentic-modal-send:hover { background: #564ba2; }
-
-.agentic-modal-result {
-  background: #f3f4f6;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  max-height: 180px;
-  overflow: auto;
-  font-family: monospace;
+.floating-particle:nth-child(3) {
+  animation-delay: 1s;
 }
 
-.agentic-modal-loader {
-  text-align: center; padding-top: 18px;
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.loader-spinner {
-  animation: spin 1s linear infinite;
+/* Shimmer effect for loading states */
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .agentic-modal-window {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .agentic-modal-window {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .floating-particle,
+  .shimmer,
+  .pulse-glow {
+    animation: none;
+  }
+}
+
+/* Focus styles for better accessibility */
+.agentic-modal-input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Button hover effects */
+.agentic-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agentic-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.agentic-button:active {
+  transform: translateY(0);
+}
+
+/* Status indicator animations */
+.status-indicator {
+  animation: bounce-in 0.5s ease-out;
+}
+
+.status-indicator.pulse {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Card hover effects */
+.agentic-card {
+  transition: all 0.3s ease;
+}
+
+.agentic-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Typing indicator */
+.typing-indicator {
   display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  animation: typing 1.4s infinite ease-in-out;
 }
-@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.typing-indicator:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* Gradient border effect */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #667eea, #764ba2) border-box;
+  border: 2px solid transparent;
+}
+
+/* Glow effect for active states */
+.glow-effect {
+  animation: glow 2s infinite;
+}
+
+/* Slide in animation for suggestions */
+.slide-in {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Pulse animation for listening state */
+.listening-pulse {
+  animation: pulse-glow 1.5s infinite;
+}
+
+/* Custom gradient backgrounds */
+.gradient-bg-1 {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-bg-2 {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-bg-3 {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Text gradient effects */
+.text-gradient-1 {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-2 {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shadow effects */
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.shadow-glow-lg {
+  box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+}
+
+/* Interactive elements */
+.interactive {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.interactive:hover {
+  transform: scale(1.05);
+}
+
+.interactive:active {
+  transform: scale(0.95);
+}
+
+/* Loading states */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Success/Error states */
+.success-glow {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.error-glow {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.warning-glow {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
