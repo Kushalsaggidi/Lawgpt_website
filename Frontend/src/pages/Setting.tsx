@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Sun, Moon, Shield, Bell, LogOut, Trash2 } from "lucide-react";
+import { Sparkles, Sun, Moon, Shield, Bell, LogOut, Trash2, Loader2 } from "lucide-react";
 import lawgptLogo from "@/assets/lawgpt-logo.png";
 
 const Settings = () => {
@@ -14,11 +14,27 @@ const Settings = () => {
   const [curPassword, setCurPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [delConfirm, setDelConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Initialize theme from localStorage on component mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      applyTheme(savedTheme);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    
     const load = async () => {
+      setLoading(true);
       try {
         const res = await fetch("http://localhost:5000/api/settings", {
           headers: { "Authorization": "Bearer " + token },
@@ -27,6 +43,8 @@ const Settings = () => {
           const data = await res.json();
           setTheme(data.theme || "auto");
           setNotif(Boolean(data.notifications?.enabled));
+          // Apply theme to document
+          applyTheme(data.theme || "auto");
           console.log("Settings loaded:", data);
         } else {
           const error = await res.json();
@@ -36,10 +54,12 @@ const Settings = () => {
       } catch (err) {
         console.error("Settings load error:", err);
         alert("Failed to load settings. Please check your connection.");
+      } finally {
+        setLoading(false);
       }
     };
     load();
-  }, []);
+  }, [navigate]);
 
   const persistSettings = async (next: { theme?: string; notifications?: { enabled?: boolean } }) => {
     const token = localStorage.getItem("token");
@@ -55,14 +75,30 @@ const Settings = () => {
       });
       if (res.ok) {
         console.log("Settings updated successfully");
+        return true;
       } else {
         const error = await res.json();
         alert(`Error: ${error.error || "Failed to update settings"}`);
+        return false;
       }
     } catch (err) {
       console.error("Settings update error:", err);
       alert("Failed to update settings. Please try again.");
+      return false;
     }
+  };
+
+  // Apply theme to the document
+  const applyTheme = (theme: string) => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    
+    // Apply theme classes to body
+    document.body.className = document.body.className.replace(/theme-\w+/g, '');
+    document.body.classList.add(`theme-${theme}`);
+    
+    // Store theme in localStorage for persistence
+    localStorage.setItem('theme', theme);
   };
 
   const handleChangePassword = async (e) => {
@@ -72,15 +108,28 @@ const Settings = () => {
       alert("Not logged in");
       return;
     }
+    if (!curPassword) {
+      alert("Please enter your current password");
+      return;
+    }
     if (!newPassword || newPassword.length < 6) {
       alert("Password must be at least 6 characters long");
       return;
     }
+    if (curPassword === newPassword) {
+      alert("New password must be different from current password");
+      return;
+    }
+    
+    setPasswordLoading(true);
     try {
       const res = await fetch("http://localhost:5000/api/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ new_password: newPassword })
+        body: JSON.stringify({ 
+          current_password: curPassword,
+          new_password: newPassword 
+        })
       });
       if (res.ok) {
         setCurPassword("");
@@ -93,33 +142,58 @@ const Settings = () => {
     } catch (err) {
       console.error("Password change error:", err);
       alert("Failed to change password. Please try again.");
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
   // Delete account
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
-    if (delConfirm === "DELETE") {
-      const token = localStorage.getItem("token");
-      try {
-        const res = await fetch("http://localhost:5000/api/delete-account", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify({ confirmation: "DELETE" })
-        });
-        if (res.ok) {
-          localStorage.removeItem("token");
-          alert("Your account has been deleted successfully!");
-          navigate("/login");
-        } else {
-          const error = await res.json();
-          alert(`Error: ${error.error}`);
-        }
-      } catch (err) {
-        alert("Failed to delete account. Please try again.");
+    if (delConfirm !== "DELETE") {
+      alert("Please type 'DELETE' to confirm account deletion");
+      return;
+    }
+    
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Not logged in");
+      return;
+    }
+    
+    setDeleteLoading(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ confirmation: "DELETE" })
+      });
+      if (res.ok) {
+        localStorage.removeItem("token");
+        alert("Your account has been deleted successfully!");
+        navigate("/login");
+      } else {
+        const error = await res.json();
+        alert(`Error: ${error.error}`);
       }
+    } catch (err) {
+      console.error("Delete account error:", err);
+      alert("Failed to delete account. Please try again.");
+    } finally {
+      setDeleteLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-r from-blue-50 via-amber-50 to-white flex flex-col items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="text-lg text-blue-800">Loading settings...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-50 via-amber-50 to-white flex flex-col items-center py-10">
@@ -135,24 +209,33 @@ const Settings = () => {
               variant={theme === "auto" ? "default" : "outline"}
               onClick={async () => { 
                 setTheme("auto"); 
-                await persistSettings({ theme: "auto" }); 
-                alert("Theme changed to Auto");
+                applyTheme("auto");
+                const success = await persistSettings({ theme: "auto" });
+                if (success) {
+                  alert("Theme changed to Auto");
+                }
               }}
             >Auto</Button>
             <Button
               variant={theme === "light" ? "default" : "outline"}
               onClick={async () => { 
                 setTheme("light"); 
-                await persistSettings({ theme: "light" }); 
-                alert("Theme changed to Light");
+                applyTheme("light");
+                const success = await persistSettings({ theme: "light" });
+                if (success) {
+                  alert("Theme changed to Light");
+                }
               }}
             ><Sun className="w-5 h-5 mr-2" />Light</Button>
             <Button
               variant={theme === "dark" ? "default" : "outline"}
               onClick={async () => { 
                 setTheme("dark"); 
-                await persistSettings({ theme: "dark" }); 
-                alert("Theme changed to Dark");
+                applyTheme("dark");
+                const success = await persistSettings({ theme: "dark" });
+                if (success) {
+                  alert("Theme changed to Dark");
+                }
               }}
             ><Moon className="w-5 h-5 mr-2" />Dark</Button>
           </div>
@@ -163,8 +246,10 @@ const Settings = () => {
           <div className="flex items-center gap-3">
             <Switch checked={notif} onCheckedChange={async (v) => { 
               setNotif(!!v); 
-              await persistSettings({ notifications: { enabled: !!v } }); 
-              alert(`Notifications ${!!v ? 'enabled' : 'disabled'}`);
+              const success = await persistSettings({ notifications: { enabled: !!v } });
+              if (success) {
+                alert(`Notifications ${!!v ? 'enabled' : 'disabled'}`);
+              }
             }} />
             <span className="text-slate-800 text-sm">
               Email me about important account activity & legal news
@@ -191,7 +276,16 @@ const Settings = () => {
               required
             />
             <div>
-              <Button type="submit" className="mt-2">Change Password</Button>
+              <Button type="submit" className="mt-2" disabled={passwordLoading}>
+                {passwordLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Changing Password...
+                  </>
+                ) : (
+                  "Change Password"
+                )}
+              </Button>
             </div>
           </form>
         </section>
@@ -226,10 +320,19 @@ const Settings = () => {
             <Button
               type="submit"
               variant="destructive"
-              disabled={delConfirm !== "DELETE"}
+              disabled={delConfirm !== "DELETE" || deleteLoading}
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Account
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting Account...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </>
+              )}
             </Button>
           </form>
         </section>

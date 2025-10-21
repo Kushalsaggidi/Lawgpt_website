@@ -15,6 +15,10 @@ def check_hash(password, hash_val):
         hash_val = bytes(hash_val)
     return bcrypt.checkpw(password.encode('utf-8'), hash_val)
 
+def verify_password(password, hash_val):
+    """Alias for check_hash for better readability"""
+    return check_hash(password, hash_val)
+
 
 def create_jwt(email):
     return create_access_token(identity=email, expires_delta=timedelta(hours=24))
