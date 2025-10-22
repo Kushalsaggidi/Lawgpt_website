@@ -175,17 +175,24 @@ def handle_resend_otp(params, context):
         raise Exception(f"Failed to send OTP: {str(e)}")
 
 def handle_generate_random_user(params, context):
-    """Generate realistic random user data"""
-    first_names = ["Alex", "Jordan", "Taylor", "Casey", "Morgan", "Riley", "Avery", "Quinn", "Sage", "River", "Blake", "Cameron", "Drew", "Emery", "Finley"]
-    last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Anderson", "Taylor", "Thomas", "Hernandez", "Moore"]
-    domains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com", "icloud.com"]
-    professions = ["Lawyer", "Legal Consultant", "Attorney", "Legal Advisor", "Paralegal", "Legal Researcher"]
+    """Generate realistic random user data with better uniqueness"""
+    first_names = ["Alex", "Jordan", "Taylor", "Casey", "Morgan", "Riley", "Avery", "Quinn", "Sage", "River", "Blake", "Cameron", "Drew", "Emery", "Finley", "Harper", "Kai", "Lane", "Parker", "Reese"]
+    last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Anderson", "Taylor", "Thomas", "Hernandez", "Moore", "Martin", "Jackson", "Thompson", "White", "Lopez"]
+    domains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com", "icloud.com", "live.com"]
+    professions = ["Lawyer", "Legal Consultant", "Attorney", "Legal Advisor", "Paralegal", "Legal Researcher", "Corporate Counsel", "Criminal Defense Attorney", "Family Law Attorney", "Immigration Lawyer"]
+    specializations = ["Corporate Law", "Criminal Law", "Family Law", "Property Law", "Constitutional Law", "Immigration Law", "Tax Law", "Employment Law", "Intellectual Property", "Environmental Law"]
     
+    # Generate unique email by adding random numbers
     first_name = random.choice(first_names)
     last_name = random.choice(last_names)
-    email = f"{first_name.lower()}.{last_name.lower()}@{random.choice(domains)}"
-    password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    random_suffix = random.randint(100, 9999)
+    email = f"{first_name.lower()}.{last_name.lower()}{random_suffix}@{random.choice(domains)}"
+    
+    # Generate strong password
+    password = ''.join(random.choices(string.ascii_letters + string.digits + "!@#$%", k=12))
+    
     profession = random.choice(professions)
+    specialization = random.choice(specializations)
     
     return {
         "success": True, 
@@ -193,75 +200,81 @@ def handle_generate_random_user(params, context):
             "email": email,
             "password": password,
             "name": f"{first_name} {last_name}",
-            "bio": f"{profession} specializing in {random.choice(['Corporate Law', 'Criminal Law', 'Family Law', 'Property Law', 'Constitutional Law'])}"
+            "bio": f"{profession} specializing in {specialization} with {random.randint(2, 15)} years of experience"
         },
         "message": f"Generated user: {email}"
     }
 
 def handle_signup_with_random(params, context):
-    """Create account with randomly generated user details"""
-    random_user = handle_generate_random_user(params, context)
-    if not random_user["success"]:
-        return random_user
+    """Create account with randomly generated user details - improved version"""
+    max_attempts = 5
+    attempt = 0
     
-    user_data = random_user["generated_user"]
-    email = user_data["email"]
-    password = user_data["password"]
-    name = user_data["name"]
-    bio = user_data.get("bio", "")
-    
-    # Check if user already exists
-    existing_user = users.find_one({"email": email})
-    if existing_user:
-        # Try to login with existing user
-        if check_hash(password, existing_user['password']):
+    while attempt < max_attempts:
+        try:
+            random_user = handle_generate_random_user(params, context)
+            if not random_user["success"]:
+                return random_user
+            
+            user_data = random_user["generated_user"]
+            email = user_data["email"]
+            password = user_data["password"]
+            name = user_data["name"]
+            bio = user_data.get("bio", "")
+            
+            # Check if user already exists
+            existing_user = users.find_one({"email": email})
+            if existing_user:
+                attempt += 1
+                continue  # Try with different random data
+            
+            # Create new user
+            user_record = {
+                "name": name,
+                "email": email,
+                "password": generate_hash(password),
+                "bio": bio,
+                "created_at": datetime.utcnow(),
+                "settings": {
+                    "theme": "auto",
+                    "notifications": {"enabled": True}
+                },
+                "stats": {
+                    "totalQueries": 0,
+                    "favoriteModel": "LawGPT",
+                    "accountAge": "0 days",
+                    "currentStreak": "0 days",
+                    "accuracy": 0,
+                    "responseTime": 0,
+                    "satisfaction": 0
+                }
+            }
+            
+            users.insert_one(user_record)
             token = create_access_token(identity=email)
             context["token"] = token
             context["user_email"] = email
+            
             return {
                 "success": True, 
                 "token": token, 
                 "user_email": email, 
-                "message": f"✅ Logged in with existing account: {email}",
+                "message": f"✅ Created and logged in as {email}",
                 "generated_user": user_data
             }
-        else:
-            # Generate new random user if password doesn't match
-            return handle_signup_with_random(params, context)
-    
-    # Create new user
-    user_record = {
-        "name": name,
-        "email": email,
-        "password": generate_hash(password),
-        "bio": bio,
-        "created_at": datetime.utcnow(),
-        "settings": {
-            "theme": "auto",
-            "notifications": {"enabled": True}
-        },
-        "stats": {
-            "totalQueries": 0,
-            "favoriteModel": "LawGPT",
-            "accountAge": "0 days",
-            "currentStreak": "0 days",
-            "accuracy": 0,
-            "responseTime": 0,
-            "satisfaction": 0
-        }
-    }
-    
-    users.insert_one(user_record)
-    token = create_access_token(identity=email)
-    context["token"] = token
-    context["user_email"] = email
+            
+        except Exception as e:
+            attempt += 1
+            if attempt >= max_attempts:
+                return {
+                    "success": False,
+                    "error": f"Failed to create random user after {max_attempts} attempts: {str(e)}"
+                }
+            continue
     
     return {
-        "success": True, 
-        "token": token, 
-        "user_email": email, 
-        "message": f"✅ Created and logged in as {email}",
-        "generated_user": user_data
+        "success": False,
+        "error": f"Failed to create unique random user after {max_attempts} attempts"
     }
 
 # ===== SEARCH & AI FUNCTIONALITY =====
@@ -298,7 +311,7 @@ def handle_search(params, context):
 def handle_view_query_history(params, context):
     """View user's query history with intelligent filtering"""
     user_email = context.get("user_email")
-    if not user_email:
+    if not user_email: 
         raise Exception("Must be logged in to view query history")
     
     limit = int(params.get("limit", 10))

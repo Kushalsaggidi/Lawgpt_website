@@ -175,7 +175,7 @@ const Dashboard = () => {
     }
   }, [agenticResult, setAgenticResult, toast]);
 
-  // Voice Recognition Handler
+  // Enhanced Voice Recognition Handler
   const toggleVoiceInput = () => {
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop();
@@ -196,9 +196,10 @@ const Dashboard = () => {
     }
 
     const recognition = new (SpeechRecognition as any)();
-    recognition.interimResults = false;
-    recognition.lang = "en-IN";
+    recognition.interimResults = true; // Enable interim results for better UX
+    recognition.lang = "en-US"; // Better recognition for English
     recognition.continuous = false;
+    recognition.maxAlternatives = 3; // Get multiple alternatives
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -209,20 +210,61 @@ const Dashboard = () => {
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setQuery(transcript);
-      setIsListening(false);
-      toast({
-        title: "✅ Voice Captured",
-        description: "Your question is ready to submit",
-      });
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      // Show interim results for better UX
+      if (interimTranscript) {
+        setQuery(interimTranscript);
+      }
+
+      if (finalTranscript) {
+        setQuery(finalTranscript);
+        setIsListening(false);
+        toast({
+          title: "✅ Voice Captured",
+          description: "Your question is ready to submit",
+        });
+        // Auto-submit after voice capture
+        setTimeout(() => {
+          handleSubmit();
+        }, 500);
+      }
     };
 
     recognition.onerror = (event) => {
       setIsListening(false);
+      let errorMessage = "Voice recognition error";
+      
+      switch (event.error) {
+        case "no-speech":
+          errorMessage = "No speech detected. Please try again.";
+          break;
+        case "audio-capture":
+          errorMessage = "Microphone not accessible. Please check permissions.";
+          break;
+        case "not-allowed":
+          errorMessage = "Microphone permission denied. Please allow microphone access.";
+          break;
+        case "network":
+          errorMessage = "Network error. Please check your connection.";
+          break;
+        default:
+          errorMessage = `Voice error: ${event.error}`;
+      }
+      
       toast({
         title: "Voice Error",
-        description: `Could not capture voice: ${event.error}`,
+        description: errorMessage,
         variant: "destructive",
       });
     };

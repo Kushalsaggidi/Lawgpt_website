@@ -26,14 +26,18 @@ const AgenticBotModal: React.FC<AgenticBotModalProps> = ({ close, onSearchResult
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Command suggestions
+  // Enhanced command suggestions
   const suggestions = [
+    { text: "Sign up with random details", icon: "🎲", category: "Auth" },
     { text: "Search for Article 370", icon: "🔍", category: "Search" },
-    { text: "Sign up with random details", icon: "👤", category: "Auth" },
-    { text: "Change theme to dark", icon: "🌙", category: "Settings" },
-    { text: "Open profile and update bio", icon: "📝", category: "Profile" },
+    { text: "Change theme to dark mode", icon: "🌙", category: "Settings" },
+    { text: "Update my name to John Doe", icon: "👤", category: "Profile" },
     { text: "Show my query history", icon: "📊", category: "History" },
-    { text: "Help me with available commands", icon: "❓", category: "Help" },
+    { text: "Export my data", icon: "📤", category: "Data" },
+    { text: "Help me with commands", icon: "❓", category: "Help" },
+    { text: "Open settings and change password", icon: "⚙️", category: "Settings" },
+    { text: "Clear my query history", icon: "🗑️", category: "History" },
+    { text: "Delete my account", icon: "⚠️", category: "Account" },
   ];
 
   useEffect(() => {
@@ -41,19 +45,69 @@ const AgenticBotModal: React.FC<AgenticBotModalProps> = ({ close, onSearchResult
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.lang = "en-IN";
+      recognitionRef.current.lang = "en-US"; // Better recognition for English
       recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.interimResults = true; // Enable interim results for better UX
+      recognitionRef.current.maxAlternatives = 3; // Get multiple alternatives
 
       recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setCommand(transcript);
-        setIsListening(false);
+        let finalTranscript = "";
+        let interimTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        // Show interim results for better UX
+        if (interimTranscript) {
+          setCommand(interimTranscript);
+        }
+
+        if (finalTranscript) {
+          setCommand(finalTranscript);
+          setIsListening(false);
+          toast({
+            title: "✅ Voice Captured",
+            description: "Processing your command...",
+          });
+          // Auto-submit after voice capture
+          setTimeout(() => {
+            handleSubmit();
+          }, 500);
+        }
       };
 
-      recognitionRef.current.onerror = () => {
+      recognitionRef.current.onerror = (event: any) => {
         setIsListening(false);
-        alert("Could not capture voice");
+        let errorMessage = "Voice recognition error";
+        
+        switch (event.error) {
+          case "no-speech":
+            errorMessage = "No speech detected. Please try again.";
+            break;
+          case "audio-capture":
+            errorMessage = "Microphone not accessible. Please check permissions.";
+            break;
+          case "not-allowed":
+            errorMessage = "Microphone permission denied. Please allow microphone access.";
+            break;
+          case "network":
+            errorMessage = "Network error. Please check your connection.";
+            break;
+          default:
+            errorMessage = `Voice error: ${event.error}`;
+        }
+        
+        toast({
+          title: "Voice Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
       };
 
       recognitionRef.current.onend = () => {
@@ -98,12 +152,13 @@ const AgenticBotModal: React.FC<AgenticBotModalProps> = ({ close, onSearchResult
     if (!command.trim()) return;
     setIsProcessing(true);
     setResult(null);
+    
     try {
       const response = await fetch("http://localhost:5000/api/agentic-command", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,  // send JWT if present
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ command })
       });
@@ -111,123 +166,61 @@ const AgenticBotModal: React.FC<AgenticBotModalProps> = ({ close, onSearchResult
       const data = await response.json();
       setResult(data);
 
-      // Process all results and handle different types of actions
-      let hasSearchResults = false;
-      let searchQuery = "";
-      let searchResponses = {};
-      let hasNavigation = false;
-      let hasProfileUpdate = false;
-      let hasSettingsUpdate = false;
-      let hasThemeChange = false;
-      let hasHelp = false;
-      let hasError = false;
-      let errorMessage = "";
-
-      // The new backend returns multiple steps in an array at data.results
-      // Loop through them and apply relevant actions
-      if (Array.isArray(data.results)) {
-        data.results.forEach(result => {
-          // Handle authentication
-          if (
-            (result.tool === "login" || result.tool === "signup" || result.tool === "signup_with_random") &&
-            result.success && result.result?.token
-          ) {
-            localStorage.setItem("token", result.result.token);
-            localStorage.setItem("userEmail", result.result.user_email);
-            // Always route to dashboard after login or signup!
-            setTimeout(() => {
-              navigate("/dashboard");
-              close();
-            }, 1500);
-          }
-
-          // Handle search results
-          if (result.tool === "search" && result.success && result.result?.results) {
-            hasSearchResults = true;
-            searchQuery = result.result.query || command;
-            searchResponses = result.result.results;
-          }
-
-          // Handle navigation
-          if (result.result?.navigate) {
-            hasNavigation = true;
-            setTimeout(() => {
+      // Process results with enhanced token management
+      if (data.results) {
+        for (const result of data.results) {
+          if (result.success && result.result) {
+            // Handle authentication results
+            if (result.result.token && result.result.user_email) {
+              localStorage.setItem("token", result.result.token);
+              localStorage.setItem("userEmail", result.result.user_email);
+              
+              toast({
+                title: "🔐 Authentication Success",
+                description: result.result.message,
+              });
+              
+              // Navigate to dashboard after successful auth
+              setTimeout(() => {
+                navigate("/dashboard");
+                close();
+              }, 1500);
+            }
+            
+            // Handle search results
+            if (result.result.search_results) {
+              onSearchResults?.(result.result.search_results);
+            }
+            
+            // Handle navigation
+            if (result.result.navigate) {
               navigate(`/${result.result.navigate}`);
-              close();
-            }, 1500);
+            }
+            
+            // Handle other agentic results
+            if (result.result.message && !result.result.token) {
+              onAgenticResult?.({
+                type: 'success',
+                message: result.result.message,
+                data: result.result
+              });
+            }
+          } else if (!result.success) {
+            toast({
+              title: "❌ Error",
+              description: result.error || "Command failed",
+              variant: "destructive",
+            });
           }
-
-          // Handle profile updates
-          if (result.tool === "update_profile" || result.tool === "update_profile_field") {
-            hasProfileUpdate = true;
-          }
-
-          // Handle settings updates
-          if (result.tool === "update_setting" || result.tool === "update_notification_setting") {
-            hasSettingsUpdate = true;
-          }
-
-          // Handle theme changes
-          if (result.tool === "update_theme") {
-            hasThemeChange = true;
-          }
-
-          // Handle help
-          if (result.tool === "help") {
-            hasHelp = true;
-          }
-
-          // Handle errors
-          if (!result.success && result.error) {
-            hasError = true;
-            errorMessage = result.error;
-          }
-        });
-      }
-
-      // Handle different result types
-      if (hasSearchResults && onSearchResults) {
-        onSearchResults({
-          query: searchQuery,
-          responses: searchResponses
-        });
-        close();
-        return;
-      }
-
-      if (hasNavigation) {
-        // Navigation is handled above with setTimeout
-        return;
-      }
-
-      if (hasProfileUpdate || hasSettingsUpdate || hasThemeChange || hasHelp) {
-        // Pass result to context for handling
-        if (onAgenticResult) {
-          onAgenticResult({
-            type: hasProfileUpdate ? 'profile_update' :
-              hasSettingsUpdate ? 'settings_update' :
-                hasThemeChange ? 'theme_change' : 'help',
-            data: data,
-            message: data.results?.[0]?.result?.message || "Action completed successfully"
-          });
         }
-        close();
-        return;
-      }
-
-      if (hasError) {
-        if (onAgenticResult) {
-          onAgenticResult({
-            type: 'error',
-            data: data,
-            message: errorMessage
-          });
-        }
-        close();
-        return;
       }
     } catch (error) {
-      alert("Failed to execute command.");
+      console.error("Agentic command error:", error);
+      toast({
+        title: "❌ Error",
+        description: "Failed to process command. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
